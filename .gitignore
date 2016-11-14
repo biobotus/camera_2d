@@ -7,4 +7,4 @@
 *.bak
 *.log
 */old/*
-
+*.jpg*
