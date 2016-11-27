@@ -172,6 +172,7 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
 def main():
 # Set path and read image
     image_file = "1.jpg"
+    im_folder = os.getcwd() + "/" + "Images/"
     im_o = plt.imread(image_file)    
 
     if im_o is None:
