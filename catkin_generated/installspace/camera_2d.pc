@@ -1,8 +1,0 @@
-prefix=/home/ubuntu/biobot_ros_jtk/install
-
-Name: camera_2d
-Description: Description of camera_2d
-Version: 0.0.0
-Cflags: 
-Libs: -L/home/ubuntu/biobot_ros_jtk/install/lib 
-Requires: 
