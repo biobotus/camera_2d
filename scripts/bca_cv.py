@@ -1,8 +1,7 @@
-#!/usr/bin/env python
+#!/usr/bin/python
 __author__ = "Jean-Samuel Lauzon, Etienne Pelletier, Marc-Antoine Deragon"
 __copyright__ = ""
-__credits__ = ["Jean-Samuel Lauzon", "Etienne Pelletier",
-	"Marc-Antoine Deragon"]
+__credits__ = ["Jean-Samuel Lauzon", "Etienne Pelletier", "Marc-Antoine Deragon"]
 __license__ = ""
 __version__ = "1.0.1"
 __maintainer__ = ""
@@ -12,8 +11,8 @@ __status__ = "Dev"
 
 
 # import
-import os
 import cv2
+import os
 import numpy as np
 import matplotlib.pyplot as plt
 from scipy import ndimage as ndi
@@ -28,32 +27,34 @@ from skimage.morphology import watershed
 
 
 def findCircularDish(img, rRange, factor):
- 
     # Function variables
-    scale = 0.1             # scale factor to find circle faster
+    scale = 0.1  # scale factor to find circle faster
     radius_range = tuple([int(scale*rad) for rad in rRange])
 
     # resize image (faster computation)
     shape = img.shape
     max_x = shape[1]
     max_y = shape[0]
-    size = (int(scale*max_x), int(scale*max_y)) # (size_x, size_y)
+    size = (int(scale*max_x), int(scale*max_y))  # (size_x, size_y)
     im_scale = cv2.resize(img, dsize=size)
+
+    # Threshold the image to help find circles
+    ret,th1 = cv2.threshold(im_scale,100,255,cv2.THRESH_BINARY)
 
     # Find circles is the image with Hough Circle Transform
     # The algorithm returns a list of (x, y, radius) where (x, y) is center
-    circles = cv2.HoughCircles(im_scale, cv2.cv.CV_HOUGH_GRADIENT, 2, \
-                 20, minRadius=radius_range[0], maxRadius=radius_range[1])
+    circles = cv2.HoughCircles(th1, cv2.cv.CV_HOUGH_GRADIENT, 2, \
+                 200, minRadius=radius_range[0], maxRadius=radius_range[1])
 
     # Return nothing if no or more than one circle is found
     if not isinstance(circles, type(np.empty(0))):
         print("Error - no circle found")
-        return 
+        return
 
-    # return data of the smallest circle found
+    # Return data of the smallest circle found
     circles = (circles[0, :]).astype("float")
-    mins = np.argmin(circles, axis=0)
-    indx = mins[2]
+    max_c = np.argmax(circles, axis=0)
+    indx = max_c[2]
     circle = circles[indx]
 
     # Make cicular mask
@@ -67,11 +68,7 @@ def findCircularDish(img, rRange, factor):
     c_mask = mesh_x ** 2 + mesh_y ** 2 <= (factor*inv_scale*circle[2]) ** 2
 
     # Return cicular mask
-    return c_mask
-
-    
-
-
+    return c_mask, circle*inv_scale
 
 def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True):
     # LAB codage conversion
@@ -83,14 +80,14 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
     l_eq = clahe.apply(l_channel)
 
     # Locate and mask circular Petri dish
-    c_mask = findCircularDish(l_eq, dishSize,.90)
+    c_mask, dish = findCircularDish(l_eq, dishSize,.90)
 
     # Binarize image with adaptative treshold
-    nhood = 101 # size of neighbourhood
+    nhood = 151  # size of neighbourhood
     offset = 20
     BW1 = cv2.adaptiveThreshold(l_eq,255,\
-        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
-        cv2.THRESH_BINARY_INV,nhood,offset)
+          cv2.ADAPTIVE_THRESH_GAUSSIAN_C,\
+          cv2.THRESH_BINARY_INV,nhood,offset)
 
     # Apply median blur to smooth edges and remove noise
     BW1 = cv2.medianBlur(BW1, med_filt)
@@ -99,8 +96,7 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
     idx = (c_mask== False)
     BW2 = np.copy(BW1)
     BW2[idx] = 0;
-    
-    
+
     if use_watershed:
         # Watershed
         distance = ndi.distance_transform_edt(BW2)
@@ -131,12 +127,11 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
         mask_sizes[0] = 0
         BW3 = mask_sizes[label_objects]
         labels = morphology.label(BW3, background=0)
-        props = regionprops(labels)
-    
+
     # Extract info from new regions
     props = regionprops(labels)
     N = len(props)
-    colors = np.zeros([N,1,3], dtype=int)
+    colors = np.zeros([N,3], dtype=int)
     centers = np.zeros([N,2], dtype=int)
     bboxes = np.zeros([N,4], dtype=int)
     areas = np.zeros([N,1])
@@ -144,7 +139,7 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
     eccentricities = np.zeros([N,1])
     for val in props:
         # Extract center positions
-        centers[val.label-1,:] = [int(i) for i in val.centroid]
+        centers[val.label-1,:] = [i for i in val.centroid]
         # Extract perimeters
         perimeters[val.label-1] = val.perimeter
         # Extract areas
@@ -155,34 +150,39 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
         bboxes[val.label-1,:] = [int(i) for i in val.bbox]
         # Extract colors
         idx = (labels == val.label)
-        colors[val.label-1,:] = np.round(np.mean(im_o[idx,:],axis=0)) 
-    
-    # Generate new images with centers
-    for val in centers: 
-        cv2.circle(im_o, (int(val[1]), int(val[0])), 3, (0, 255, 0), -1)   
+        colors[val.label-1,:] = np.round(np.mean(im_o[idx,:],axis=0))
 
-    # Mark boundaries
-    im_output = segmentation.mark_boundaries(im_o, labels)
-    
-    #return values
+
+    # Generate new images with centers
+    for val in centers:
+        cv2.circle(im_o, (int(val[1]), int(val[0])), 3, (0, 255, 0), -1)
+    cv2.circle(im_o, (int(dish[0]), int(dish[1])), int(dish[2]), (0, 255, 0), 10)
+
+    dim_im = im_o.shape
+    centers[:,0] = centers[:,0] - int(dim_im[0]/2)
+    centers[:,1] = centers[:,1] - int(dim_im[1]/2)
+
+    im_output = im_o
+
+    # Return values
     return im_output, perimeters, eccentricities, areas, colors, centers
 
-    
 
-def main():
-# Set path and read image
-    image_file = "1.jpg"
-    im_o = plt.imread(image_file)    
+if __name__ == "__main__":
+    # Set path and read image
+    image_file = "1.1.jpg"
+    im_o = plt.imread(image_file)
 
     if im_o is None:
         print("Requested image does not exist: {0}".format(image_file))
         return
-       
+
     im_output, perimeters, eccentricities, areas, colors, centers = \
-        BC_finder(im_o, [750, 900],  100, 10, 7, use_watershed=False)
+        BC_finder(im_o, [800,900],  100, 10, 7, use_watershed=False)
+
+    cv2.imwrite("2.jpg",im_output)
+    print(centers)
 
     plt.figure()
     plt.imshow(im_output)
     plt.show()
-if __name__ == "__main__":
-    main()
