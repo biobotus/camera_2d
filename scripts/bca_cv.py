@@ -175,7 +175,7 @@ if __name__ == "__main__":
 
     if im_o is None:
         print("Requested image does not exist: {0}".format(image_file))
-        return
+        quit()
 
     im_output, perimeters, eccentricities, areas, colors, centers = \
         BC_finder(im_o, [800,900],  100, 10, 7, use_watershed=False)

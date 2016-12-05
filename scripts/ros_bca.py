@@ -42,6 +42,8 @@ class BCA():
 
         # Database Client
         self.client = pymongo.MongoClient()
+        self.biobot = self.client['biobot']
+        self.fs = GridFS(self.biobot)
 
     def callback_take_image(self,data):
         cv2.imwrite("image_raw.jpg",self.cv_image)
@@ -256,18 +258,17 @@ class BCA():
                 - image : image to write in DB (.jpg filename)
         """
 
-        # MongoDB connection
-        protocol_db = self.client[protocol]
-        fs = GridFS(protocol_db)
-
         with open(image,'rb') as f:
             data = f.read()
 
         # Saves image to DB
         filename = "{0}_{1}.jpg".format(operation,step)
-        image_id = fs.put(data, filename=filename)
+        image_id = self.fs.put(data, filename=filename)
 
-        protocol_db.images.insert_one({'filename': filename, 'image_id': image_id})
+        self.biobot.bca_images.insert_one({'filename': filename, \
+                                           'protocol': protocol, \
+                                           'step': step, \
+                                           'image_id': image_id})
 
     def listener(self):
         rospy.spin()
