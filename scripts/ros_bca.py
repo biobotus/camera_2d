@@ -112,15 +112,27 @@ class BCA():
         cv2.imwrite("raw_image.jpg", self.cv_image)
         self.writeImageDB("raw", self.protocol, self.step, "raw_image.jpg")
 
-        # Calls colony_selection methods
-        parameters, image = self.colony_selection()
+        error_cmt = 0
 
-        # Saves modified image and found parameters to DB
-        cv2.imwrite("temp_image.jpg", image)
-        self.writeParamsDB(operation, self.protocol, self.step, parameters)
-        self.writeImageDB(operation, self.protocol, self.step, "temp_image.jpg")
+        while(1):
+            try:
+                # Calls colony_selection methods
+                parameters, image = self.colony_selection()
 
-        print('BC_Analysis done ...')
+                # Saves modified image and found parameters to DB
+                cv2.imwrite("temp_image.jpg", image)
+                self.writeParamsDB(operation, self.protocol, self.step, parameters)
+                self.writeImageDB(operation, self.protocol, self.step, "temp_image.jpg")
+                print('BC_Analysis done ...')            
+                break
+            
+            except Exception as error:
+                print('Caught this error: ' + repr(error))
+                if error_cmt == 3:
+                    print('Impossible to finalize BC Analysis ...')
+                    break
+
+                error_cmt = error_cmt + 1            
 
         # Publish done
         self.bca_done.publish("BC_Analysis")
@@ -145,23 +157,32 @@ class BCA():
 
             index = np.ones(len(perimeter))
 
-            temp_index = np.where(perimeter < self.perimeter_min)
-            index[temp_index[0]] = 0
+            min_default_value = -1
+            max_default_value = 1e10            
 
-            temp_index = np.where(perimeter > self.perimeter_max)
-            index[temp_index[0]] = 0
+            if self.perimeter_min != min_default_value:
+                temp_index = np.where(perimeter < self.perimeter_min)
+                index[temp_index[0]] = 0
 
-            temp_index = np.where(excentricity < self.excentricity_min)
-            index[temp_index[0]] = 0
+            if self.perimeter_max != max_default_value:
+                temp_index = np.where(perimeter > self.perimeter_max)
+                index[temp_index[0]] = 0
 
-            temp_index = np.where(excentricity > self.excentricity_max)
-            index[temp_index[0]] = 0
+            if self.excentricity_min != min_default_value:
+                temp_index = np.where(excentricity < self.excentricity_min)
+                index[temp_index[0]] = 0
 
-            temp_index = np.where(area < self.area_min)
-            index[temp_index[0]] = 0
+            if excentricity_max != max_default_value:
+                temp_index = np.where(excentricity > self.excentricity_max)
+                index[temp_index[0]] = 0
 
-            temp_index = np.where(area > self.area_max)
-            index[temp_index[0]] = 0
+            if area_min != min_default_value:
+                temp_index = np.where(area < self.area_min)
+                index[temp_index[0]] = 0
+
+            if area_max != max_default_value:
+                temp_index = np.where(area > self.area_max)
+                index[temp_index[0]] = 0
 
             index = (np.matrix(index)).transpose()
 
@@ -175,20 +196,21 @@ class BCA():
             parameters = np.concatenate((index,perimeter,excentricity,area,color1,color2,color3,center1,center2),1)
             parameters = parameters[np.argsort(-parameters[:,0],0)][:]
 
-            j = 0
+            if color[0] != 255 and color[1] != 255 and color[2] != 255:
 
-            print(parameters.shape)
+                j = 0
 
-            dist = np.ones(len(perimeter)) * 1000000
+                dist = np.ones(len(perimeter)) * 1000000
 
-            for i in parameters:
-                if i[0,0] == 1 :
-                    dist[j] = (i[0,6] - self.color[0])**2 + (i[0,5] - self.color[1])**2 + (i[0,4] - self.color[2])**2
-                j = j + 1
+                for i in parameters:
+                    if i[0,0] == 1 :
+                        dist[j] = (i[0,6] - self.color[0])**2 + (i[0,5] - self.color[1])**2 + (i[0,4] - self.color[2])**2
+                    j = j + 1
 
-            parameters = parameters[np.argsort(dist[:],0)][:]
+                parameters = parameters[np.argsort(dist[:],0)][:]
 
-            parameters[:,0][self.number_of_colony:] = 0
+            if self.number_of_colony:
+                parameters[:,0][self.number_of_colony:] = 0
 
         # No selection if operation is analysis
         else:
@@ -237,7 +259,7 @@ class BCA():
                 'id': j+1,
                 'selected': parameters[j,0],
                 'perimeter': parameters[j,1]*pixel_size,
-                'excentricity': parameters[j,2]*pixel_size,
+                'excentricity': parameters[j,2],
                 'area': parameters[j,3]*(pixel_size)**2,
                 'color': "#{:02x}{:02x}{:02x}".format(int(parameters[j,6]),int(parameters[j,5]),int(parameters[j,4])),
                 'x': parameters[j,7]*pixel_size,

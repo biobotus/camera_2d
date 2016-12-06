@@ -38,8 +38,6 @@ def findCircularDish(img, rRange, factor):
     size = (int(scale*max_x), int(scale*max_y))  # (size_x, size_y)
     im_scale = cv2.resize(img, dsize=size)
 
-    # Threshold the image to help find circles
-    ret,th1 = cv2.threshold(im_scale,100,255,cv2.THRESH_BINARY)
 
     # Find circles is the image with Hough Circle Transform
     # The algorithm returns a list of (x, y, radius) where (x, y) is center
@@ -49,6 +47,7 @@ def findCircularDish(img, rRange, factor):
     # Return nothing if no or more than one circle is found
     if not isinstance(circles, type(np.empty(0))):
         print("Error - no circle found")
+        raise Exception('Error - no circle found')
         return
 
     # Return data of the smallest circle found
@@ -156,6 +155,9 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
     # Generate new images with centers
     for val in centers:
         cv2.circle(im_o, (int(val[1]), int(val[0])), 3, (0, 255, 0), -1)
+    for val in bboxes:
+        cv2.rectangle(im_o, (val[1],val[0]), (val[3],val[4]), (0,255,0), thickness=1, lineType=8, shift=0)
+    
     cv2.circle(im_o, (int(dish[0]), int(dish[1])), int(dish[2]), (0, 255, 0), 10)
 
     dim_im = im_o.shape
