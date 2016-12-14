@@ -70,6 +70,7 @@ class BCA():
         image and bacterial colonies found parameters to DB.
         """
 
+        # Sleep 30s to allow the 2D camera to adjust his auto contrast
         time.sleep(30)
 
         # Colony selection parameters
@@ -100,7 +101,7 @@ class BCA():
         print('protocol : ' , self.protocol)
         print('step : ' , self.step)
         print('pick number : ' , self.pick_number)
-
+        
         # Sets operation value in function of self.picking
         if self.picking:
             operation = "picking_{}".format(self.pick_number)
@@ -113,6 +114,10 @@ class BCA():
         self.writeImageDB("raw", self.protocol, self.step, "raw_image.jpg")
 
         error_cmt = 0
+
+        # If an exception is thrown during the analysis, it will retry the analysis. 
+        # If it failed 4 times, the script will publish a Done_Module and the message
+        # 'Impossible to finalize BC Analysis ... ' will be printed
 
         while(1):
             try:
@@ -150,6 +155,8 @@ class BCA():
         dist_col = 10
         med_filt = 11
 
+        self.pixel_size = 0.0597285068
+
         # Selection of colonies cooresponding to specs if operation is picking
         if self.picking:
             # BC_finder from bca_cv.py library
@@ -158,7 +165,12 @@ class BCA():
             index = np.ones(len(perimeter))
 
             min_default_value = -1
-            max_default_value = 1e10            
+            max_default_value = 1e10
+
+            perimeter = perimeter * self.pixel_size
+            area  = area * (self.pixel_size)**2
+            
+            # Colony selection dependant of parameters
 
             if self.perimeter_min != min_default_value:
                 temp_index = np.where(perimeter < self.perimeter_min)
@@ -172,15 +184,15 @@ class BCA():
                 temp_index = np.where(excentricity < self.excentricity_min)
                 index[temp_index[0]] = 0
 
-            if excentricity_max != max_default_value:
+            if self.excentricity_max != max_default_value:
                 temp_index = np.where(excentricity > self.excentricity_max)
                 index[temp_index[0]] = 0
 
-            if area_min != min_default_value:
+            if self.area_min != min_default_value:
                 temp_index = np.where(area < self.area_min)
                 index[temp_index[0]] = 0
 
-            if area_max != max_default_value:
+            if self.area_max != max_default_value:
                 temp_index = np.where(area > self.area_max)
                 index[temp_index[0]] = 0
 
@@ -196,19 +208,21 @@ class BCA():
             parameters = np.concatenate((index,perimeter,excentricity,area,color1,color2,color3,center1,center2),1)
             parameters = parameters[np.argsort(-parameters[:,0],0)][:]
 
-            if color[0] != 255 and color[1] != 255 and color[2] != 255:
+            # Selection of colonies in function of the nearest 3D euclidian distance to asked RGB color
 
+            if (self.color[0] != 255) and (self.color[1] != 255) and (self.color[2] != 255):
                 j = 0
-
                 dist = np.ones(len(perimeter)) * 1000000
 
                 for i in parameters:
                     if i[0,0] == 1 :
                         dist[j] = (i[0,6] - self.color[0])**2 + (i[0,5] - self.color[1])**2 + (i[0,4] - self.color[2])**2
+                        print(dist[j])                 
                     j = j + 1
 
                 parameters = parameters[np.argsort(dist[:],0)][:]
 
+            # Eliminating excess found colonies
             if self.number_of_colony:
                 parameters[:,0][self.number_of_colony:] = 0
 
@@ -249,7 +263,6 @@ class BCA():
         colonies = []
 
         j = 0
-        pixel_size = 0.0597285068
 
         # Parsing parameters numpy matrix to create colony dict
         for i in parameters:
@@ -258,12 +271,12 @@ class BCA():
                 'step': step,
                 'id': j+1,
                 'selected': parameters[j,0],
-                'perimeter': parameters[j,1]*pixel_size,
+                'perimeter': parameters[j,1],
                 'excentricity': parameters[j,2],
-                'area': parameters[j,3]*(pixel_size)**2,
+                'area': parameters[j,3],
                 'color': "#{:02x}{:02x}{:02x}".format(int(parameters[j,6]),int(parameters[j,5]),int(parameters[j,4])),
-                'x': parameters[j,7]*pixel_size,
-                'y': parameters[j,8]*pixel_size}
+                'x': parameters[j,7]*self.pixel_size,
+                'y': parameters[j,8]*self.pixel_size}
 
             j = j + 1
             colonies.append(colony)

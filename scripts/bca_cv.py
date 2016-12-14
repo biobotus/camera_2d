@@ -39,6 +39,9 @@ def findCircularDish(img, rRange, factor):
     im_scale = cv2.resize(img, dsize=size)
 
 
+    #hold the image to help find circles
+    ret,th1 = cv2.threshold(im_scale,100,255,cv2.THRESH_BINARY)
+    
     # Find circles is the image with Hough Circle Transform
     # The algorithm returns a list of (x, y, radius) where (x, y) is center
     circles = cv2.HoughCircles(th1, cv2.cv.CV_HOUGH_GRADIENT, 2, \
@@ -155,8 +158,8 @@ def BC_finder(im_o, dishSize,  area_min, dist_col, med_filt, use_watershed=True)
     # Generate new images with centers
     for val in centers:
         cv2.circle(im_o, (int(val[1]), int(val[0])), 3, (0, 255, 0), -1)
-    for val in bboxes:
-        cv2.rectangle(im_o, (val[1],val[0]), (val[3],val[4]), (0,255,0), thickness=1, lineType=8, shift=0)
+    #for val in bboxes:
+        #cv2.rectangle(im_o, (val[1],val[0]), (val[3],val[4]), (0,255,0), thickness=1, lineType=8, shift=0)
     
     cv2.circle(im_o, (int(dish[0]), int(dish[1])), int(dish[2]), (0, 255, 0), 10)
 
