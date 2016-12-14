@@ -4,7 +4,7 @@ This repository contains all the script needed to used the BCA (bacterial colony
 module of BioBotus project.
 
 It contains a ros node for bacterial colony analysis (ros_bca.py), 
-a python library for bacterial analysis (bca_cv.py) and a library to find the 
+a python algorithm for bacterial analysis (bca_cv.py) and a script to find the 
 pixel_size of an image at a fix distance for a 2D camera using QR codes. (pixel_size.py)
 
 
@@ -50,13 +50,13 @@ pixel_size of an image at a fix distance for a 2D camera using QR codes. (pixel_
 ------------------------------------------------------------------------------------------
 
 - bca_cv.py 
-    Python library using openCV to analyze bacterial colony. This library is used by ros_bca 
+    Python algorithm using openCV to analyze bacterial colony. This algo. is used by ros_bca 
     to find the characteritics of every bacterial colony in the given image of a petri dish.
 
-    This library is stand alone, it can be used to count and characterize bacterial colony 
+    This script is stand alone, it can be used to count and characterize bacterial colony 
     on a 2D image of a petri dish independently of BioBotus project.
 
-    For further informations on this library, see the user guide at : 
+    For further informations on this algorithm, see the user guide at : 
 
 ------------------------------------------------------------------------------------------
 ------------------------------------------------------------------------------------------
