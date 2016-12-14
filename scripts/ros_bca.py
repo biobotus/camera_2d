@@ -31,7 +31,6 @@ class BCA():
         # ROS subscriptions
         self.subscriber = rospy.Subscriber('image_raw', Image, self.callback_2d_capture)
         self.subscriber = rospy.Subscriber('BC_Analysis',BCAMsg, self.callback_bca)
-        self.subscriber = rospy.Subscriber('Take_Image', Bool, self.callback_take_image)
 
         # ROS publisher
         self.bca_done = rospy.Publisher('Done_Module', String, queue_size=10)
@@ -44,11 +43,6 @@ class BCA():
         self.client = pymongo.MongoClient()
         self.biobot = self.client['biobot']
         self.fs = GridFS(self.biobot)
-
-    def callback_take_image(self,data):
-        cv2.imwrite("image_raw.jpg",self.cv_image)
-        print('Image taken ...')
-        return
 
     def callback_2d_capture(self, data):
         """
